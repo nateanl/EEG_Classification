@@ -10,7 +10,14 @@ from sklearn import cross_validation
 from sklearn import tree
 from sklearn import neighbors, datasets
 from sklearn.neighbors import KNeighborsClassifier
-
+import numpy as np
+import scipy.io as sio
+import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import Dense, Activation, Dropout
+from keras.layers import LSTM
+from keras.optimizers import RMSprop
+from keras.utils.data_utils import get_file
 
 # In[2]:
 
@@ -87,40 +94,35 @@ print clf.score(X_test, y_test)
 
 # In[12]:
 
-import numpy as np
-import scipy.io as sio
-import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Dense, Activation, Dropout
-from keras.layers import LSTM
-from keras.optimizers import RMSprop
-from keras.utils.data_utils import get_file
+
 
 
 # In[13]:
 
 data_dim = 12
-timesteps = 1
+timesteps = 120
 batch_size=1
 model = Sequential()
-model.add(LSTM(24, batch_input_shape= (1,1,12)))
+model.add(LSTM(24, batch_input_shape= (1,120,12)))
 model.add(Dense(1))
-model.compile(optimizer='rmsprop', loss='binary_crossentropy')
+model.compile(optimizer='rmsprop', loss='mse')
 
 
 # In[14]:
 
-new_input = np.zeros((12811,1,12))
-for i in range(0,12811):
-    for j in range(0,12):
-        new_input[i,:,j]= X[i,j]
+new_input = np.zeros((106,120,12))
+for i in range(0,106):
+    for k in range(0,120):
+        for j in range(0,12):
+            new_input[i,k,j]= float(X[i*106+k,j])
 
 
 # In[15]:
 
-new_output = np.zeros((12811,1))
-for i in range(0,12811):
-    new_output[i,0]= Y[i,]
+new_output = np.zeros((106,1))
+for i in range(0,106):
+    for k in range(0,120):
+        new_output[i,0]= int(Y[i*106+k])
 
 
 # In[ ]:
@@ -137,101 +139,59 @@ model.fit(new_input, new_output,
 
 # In[ ]:
 
-y_test.shape
+y_pred = model.predict(new_input)
 
 
-# In[ ]:
-
-new_test = np.zeros((6406,1,12))
-for i in range(0,6406):
-    for j in range(0,12):
-        new_test[i,:,j]= X_test[i,j]
 
 
 # In[ ]:
 
-prediction = model.predict_classes(new_input, batch_size=1)
+# new_test = np.zeros((6406,1,12))
+# for i in range(0,6406):
+#     for j in range(0,12):
+#         new_test[i,:,j]= X_test[i,j]
 
 
-# In[ ]:
-
-prediction
-
-
-# In[ ]:
-
-count =0;
-for i in range(12811):
-    if prediction[i]==new_output[i]:
-        count+=1
-
-
-# In[ ]:
-
-6748/12811.0
-
-
-# In[ ]:
-
-new_output=new_output.reshape(1281,5)
-new_input=new_input.reshape(1281,5,12)
-
-
-# In[ ]:
-
-data_dim = 12
-timesteps = 5
-batch_size=1
-model2 = Sequential()
-model2.add(LSTM(12, return_sequences=False,
-batch_input_shape=(batch_size, timesteps, data_dim)))
-#model2.add(Activation('softmax'))
-model2.compile(optimizer='rmsprop', loss='mse')
-
-
-# In[ ]:
-
-model2.fit(new_input, new_output,
-          batch_size=batch_size, nb_epoch=5
-          )
-
-
-# In[ ]:
-
-prediction = model2.predict(new_input, batch_size = 1)
-
-
-# In[ ]:
-
-for i in range(1281):
-    for j in range(5):
-        if prediction[i,j]>0.5:
-            prediction[i,j]=1
-        else:
-            prediction[i,j]=0
-
-
-# In[ ]:
-
-count=0
-for i in range(1281):
-    for j in range(5):
-        if prediction[i,j]== new_output[i,j]:
-            count+=1
-count
-
-
-# In[ ]:
-
-6405-3167
-
-
-# In[ ]:
-
-3238/6405.0
-
-
-# In[ ]:
-
-
-
+#
+# data_dim = 12
+# timesteps = 120
+# batch_size=10
+# model2 = Sequential()
+# model2.add(LSTM(240, return_sequences=False,
+# batch_input_shape=(batch_size, timesteps, data_dim)))
+# #model2.add(Activation('softmax'))
+# model2.compile(optimizer='rmsprop', loss='mse')
+#
+#
+# # In[ ]:
+#
+# model2.fit(new_input, new_output,
+#           batch_size=batch_size, nb_epoch=5
+#           )
+#
+#
+# # In[ ]:
+#
+# prediction = model2.predict(new_input, batch_size = 1)
+#
+#
+# for i in range(1281):
+#     for j in range(5):
+#         if prediction[i,j]>0.5:
+#             prediction[i,j]=1
+#         else:
+#             prediction[i,j]=0
+#
+#
+# # In[ ]:
+#
+# count=0
+# for i in range(1281):
+#     for j in range(5):
+#         if prediction[i,j]== new_output[i,j]:
+#             count+=1
+# count
+#
+#
+#
+#
