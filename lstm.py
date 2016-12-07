@@ -1,10 +1,8 @@
-
-# coding: utf-8
-
-# In[1]:
-
 import csv
 import numpy as np
+import tensorflow as tf
+tf.python.control_flow_ops = tf
+np.random.seed(1337)  # for reproducibility
 from sklearn import svm
 from sklearn import cross_validation
 from sklearn import tree
@@ -16,19 +14,26 @@ import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout
 from keras.layers import LSTM
+from keras.layers.convolutional import Convolution2D
+from keras.layers.convolutional import MaxPooling2D
+from keras.layers.core import Activation
+from keras.layers.core import Flatten
+from keras.layers import BatchNormalization
+from keras.layers.core import Dense
 from keras.optimizers import RMSprop
 from keras.utils.data_utils import get_file
+from sklearn.cross_validation import train_test_split
+from sklearn import svm
+from sklearn.model_selection import cross_val_score
+from nolearn.dbn import DBN
+from sklearn.metrics import classification_report, accuracy_score
+from dbn.tensorflow import SupervisedDBNClassification
 
-# In[2]:
-
-features = []
+log= open('5_fold_log_1125.txt','w')
+features= []
 label = []
 feature = []
-
-
-# In[3]:
-
-with open('/Users/Near/Documents/EEG_Classification/EEG_data.csv','rb') as f:
+with open('./EEG_data.csv','rb') as f:
     reader = csv.reader(f)
     i=0
     for row in reader:
@@ -38,160 +43,60 @@ with open('/Users/Near/Documents/EEG_Classification/EEG_data.csv','rb') as f:
             continue
         for i in range(0,len(row)):
             row[i] = float(row[i])
-        features.append(row[2:14])
+        features.append(row[0:14])
         label.append(row[14])
-
-
-# In[4]:
 
 X = np.asarray(features)
 Y = np.asarray(label)
+features = {}
+output = {}
+print X.shape[1]
+for i in range(X.shape[0]):
+    tu = int(X[i][0]*10 + X[i][1])
+    if tu not in features.keys():
+        features[tu] = X[i][2:14]
+    elif features[tu].shape[0]<1344:
+        features[tu] = np.concatenate((features[tu],X[i][2:14]),axis =0)
+    output[tu]= Y[i]
 
+input = np.zeros((100,1344),dtype = float)
+labels = np.zeros((100,1),dtype = int)
+for i in features.keys():
+    input[i,:] = features[i]
+    labels[i] = output[i]
 
-# In[5]:
+print "Begin LSTM model"
+accuracy = 0.0
+for i in range(0,5):
+    # X_train = np.concatenate((input[0:20*(i-1),:,:],input[20*i:100,:,:]),axis=0)
+    # Y_train = np.concatenate((labels[0:20*(i-1)],labels[20*i:100]),axis=0)
+    # X_test = input[20*(i-1):20*i,:,:]
+    # Y_test = labels[20*(i-1):20*i]
+    # X_train = X_train.reshape(80,1,1344)
+    # X_test = X_test.reshape(20,1,1344)
+    X_train, X_test, Y_train, Y_test = train_test_split(input, labels, test_size=0.2, random_state=i)
+    X_train = X_train.reshape(80,1,1344)
+    X_test = X_test.reshape(20,1,1344)
+    np.random.seed(7)
+    # create the model
+    model = Sequential()
+    batch_size = 5
+    #model.add(Embedding(top_words, embedding_vecor_length, input_length=max_review_length, dropout=0.2))
+    #model.add(Dropout(0.2))
+    model.add(LSTM(100, return_sequences=False, input_shape=(1,1344)))
+    #model.add(Dropout(0.2))
+    #model.add(LSTM(200, return_sequences = False, input_length=1024))
+    model.add(Dense(1, activation='sigmoid'))
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    print(model.summary())
+    model.fit(X_train, Y_train,nb_epoch=150)
+    # Final evaluation of the model
+    scores = model.evaluate(X_test, Y_test, batch_size = batch_size, verbose=0)
+    print("Accuracy: %.2f%%" % (scores[1]*100))
+    log.write(str(scores[1])+'\n')
+    accuracy += scores[1]
+print accuracy/5
+log.write(str(accuracy/5)+'\n')
+log.close() # you can omit in most cases as the destructor will call it
 
-X_train, X_test, y_train, y_test = cross_validation.train_test_split(features, label, test_size=0.5, random_state=0)
-clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X_train, y_train)
-
-
-# In[6]:
-
-X_train = np.asarray(X_train)
-y_train = np.asarray(y_train)
-X_test = np.asarray(X_test)
-y_test = np.asarray(y_test)
-
-
-# In[7]:
-
-X_train.shape
-
-
-# In[8]:
-
-neigh = KNeighborsClassifier(n_neighbors=100)
-neigh.fit(X_train, y_train)
-print neigh.score(X_test, y_test)
-
-
-# In[9]:
-
-from sklearn.linear_model import SGDClassifier
-
-
-# In[10]:
-
-clf = SGDClassifier(loss="hinge", penalty="l2")
-
-
-# In[11]:
-
-clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X_train, y_train)
-print clf.score(X_test, y_test)
-
-
-# In[12]:
-
-
-
-
-# In[13]:
-
-data_dim = 12
-timesteps = 120
-batch_size=1
-model = Sequential()
-model.add(LSTM(24, batch_input_shape= (1,120,12)))
-model.add(Dense(1))
-model.compile(optimizer='rmsprop', loss='mse')
-
-
-# In[14]:
-
-new_input = np.zeros((106,120,12))
-for i in range(0,106):
-    for k in range(0,120):
-        for j in range(0,12):
-            new_input[i,k,j]= float(X[i*106+k,j])
-
-
-# In[15]:
-
-new_output = np.zeros((106,1))
-for i in range(0,106):
-    for k in range(0,120):
-        new_output[i,0]= int(Y[i*106+k])
-
-
-# In[ ]:
-
-X.shape
-
-
-# In[ ]:
-
-model.fit(new_input, new_output,
-          batch_size=batch_size, nb_epoch=5
-          )
-
-
-# In[ ]:
-
-y_pred = model.predict(new_input)
-
-
-
-
-# In[ ]:
-
-# new_test = np.zeros((6406,1,12))
-# for i in range(0,6406):
-#     for j in range(0,12):
-#         new_test[i,:,j]= X_test[i,j]
-
-
-#
-# data_dim = 12
-# timesteps = 120
-# batch_size=10
-# model2 = Sequential()
-# model2.add(LSTM(240, return_sequences=False,
-# batch_input_shape=(batch_size, timesteps, data_dim)))
-# #model2.add(Activation('softmax'))
-# model2.compile(optimizer='rmsprop', loss='mse')
-#
-#
-# # In[ ]:
-#
-# model2.fit(new_input, new_output,
-#           batch_size=batch_size, nb_epoch=5
-#           )
-#
-#
-# # In[ ]:
-#
-# prediction = model2.predict(new_input, batch_size = 1)
-#
-#
-# for i in range(1281):
-#     for j in range(5):
-#         if prediction[i,j]>0.5:
-#             prediction[i,j]=1
-#         else:
-#             prediction[i,j]=0
-#
-#
-# # In[ ]:
-#
-# count=0
-# for i in range(1281):
-#     for j in range(5):
-#         if prediction[i,j]== new_output[i,j]:
-#             count+=1
-# count
-#
-#
-#
-#
+#average accuracy: 0.690000013262
