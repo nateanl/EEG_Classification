@@ -53,8 +53,8 @@ for i in features.keys():
 print "Begin DBN model"
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=i)
 dbn_model = DBN([X_train.shape[1], 300, 2],
-                learn_rates = 0.3,
-                learn_rate_decays = 0.9,
+                learn_rates = 0.9,
+                learn_rate_decays = 0.1,
                 epochs = 100,
                 verbose = 1)
 dbn_model.fit(X_train, Y_train)
@@ -63,7 +63,7 @@ print(classification_report(y_true, y_pred)) # Classification on each digit
 print 'The accuracy is:', accuracy_score(y_true, y_pred)
 
 print "Begin DBN V2 model"
-classifier = SupervisedDBNClassification(hidden_layers_structure=[1000,200],
+classifier = SupervisedDBNClassification(hidden_layers_structure=[200,200],
                                          learning_rate_rbm=0.05,
                                          learning_rate=0.1,
                                          n_epochs_rbm=10,
@@ -71,7 +71,7 @@ classifier = SupervisedDBNClassification(hidden_layers_structure=[1000,200],
                                          batch_size=32,
                                          activation_function='relu',
                                          dropout_p=0.2)
-classifier.fit(X_train, Y_train[:,0])
+classifier.fit(X_train, Y_train)
 # Test
 Y_pred = classifier.predict(X_test)
 print 'Done.\nAccuracy: %f' % accuracy_score(Y_test, Y_pred)
